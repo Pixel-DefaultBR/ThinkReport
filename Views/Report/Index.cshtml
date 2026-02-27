@@ -1,0 +1,446 @@
+@model IncidentReportViewModel
+@{
+    ViewData["Title"] = "Novo Relatório de Incidente";
+}
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <div class="bg-info bg-opacity-10 border border-info rounded p-2">
+        <i class="bi bi-file-earmark-text-fill text-info fs-3"></i>
+    </div>
+    <div>
+        <h1 class="h4 mb-0 fw-bold">Relatório de Incidente</h1>
+        <p class="text-secondary mb-0 small">
+            Preencha os campos e clique em <strong>Gerar DOCX</strong> ou <strong>Gerar PDF</strong>
+            para baixar o relatório pronto para envio ao cliente.
+        </p>
+    </div>
+</div>
+
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert alert-danger alert-dismissible fade show d-flex gap-2" role="alert">
+        <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0 mt-1"></i>
+        <div>
+            <strong>Corrija os erros abaixo antes de continuar:</strong>
+            <div asp-validation-summary="All" class="mt-1 mb-0"></div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="Generate" asp-controller="Report"
+      method="post" enctype="multipart/form-data"
+      id="reportForm" novalidate>
+
+    @Html.AntiForgeryToken()
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-header border-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-file-earmark-text text-info"></i>
+            <strong class="title">Sumário Executivo</strong>
+        </div>
+        <div class="card-body">
+            <label asp-for="ExecutiveSummary" class="form-label field-title"></label>
+            <textarea asp-for="ExecutiveSummary"
+                      class="form-control bg-dark-subtle text-light border-secondary"
+                      rows="4"
+                      placeholder="Breve descrição do incidente para o cliente: o que foi detectado, qual ferramenta identificou, e o status atual (ex: mitigado, em investigação)..."></textarea>
+            <span asp-validation-for="ExecutiveSummary" class="text-danger small"></span>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-header border-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-bell-fill text-info"></i>
+            <strong class="title">1. Informações do Alerta</strong>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="AlertId" class="form-label field-title"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary border-secondary text-light">
+                            <i class="bi bi-hash"></i>
+                        </span>
+                        <input asp-for="AlertId" class="form-control bg-dark-subtle text-light border-secondary"
+                               placeholder="ex: ALT-2025-00421" autocomplete="off" />
+                    </div>
+                    <span asp-validation-for="AlertId" class="text-danger small"></span>
+                </div>
+                <div class="col-md-8">
+                    <label asp-for="Title" class="form-label field-title"></label>
+                    <input asp-for="Title" class="form-control bg-dark-subtle text-light border-secondary"
+                           placeholder="ex: Execução de PowerShell com parâmetros ofuscados" />
+                    <span asp-validation-for="Title" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="Severity" class="form-label field-title"></label>
+                    <select asp-for="Severity"
+                            asp-items="Html.GetEnumSelectList<SeverityLevel>()"
+                            class="form-select bg-dark-subtle border-secondary fw-bold"
+                            id="severitySelect">
+                    </select>
+                    <div id="severityIndicator" style="display:none; margin-top:0.5rem; align-items:center; gap:0.5rem">
+                        <span id="severityBadge" class="sev-badge"></span>
+                        <progress id="severityBar" class="sev-progress" max="100" value="0"></progress>
+                    </div>
+                    <span asp-validation-for="Severity" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="IncidentDateTimeUtc" class="form-label field-title"></label>
+                    <input asp-for="IncidentDateTimeUtc"
+                           type="datetime-local"
+                           class="form-control bg-dark-subtle text-light border-secondary"
+                           value="@Model.IncidentDateTimeUtc.ToString("yyyy-MM-ddTHH:mm")" />
+                    <div class="form-text text-secondary">Fuso: UTC</div>
+                    <span asp-validation-for="IncidentDateTimeUtc" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="ItsmTicketNumber" class="form-label field-title"></label>
+                    <input asp-for="ItsmTicketNumber"
+                           class="form-control bg-dark-subtle text-light border-secondary"
+                           placeholder="ex: INC0012345" />
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="MitreTactic" class="form-label field-title"></label>
+                    <select asp-for="MitreTactic"
+                            class="form-select bg-dark-subtle text-light border-secondary">
+                        <option value="">— Selecione —</option>
+                        @foreach (var (id, name) in MitreTactics.All)
+                        {
+                            <option value="@id — @name">@id — @name</option>
+                        }
+                    </select>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-header border-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-journal-text text-info"></i>
+            <strong class="title">2. Resumo do Evento</strong>
+        </div>
+        <div class="card-body">
+            <label asp-for="EventSummary" class="form-label field-title"></label>
+            <textarea asp-for="EventSummary"
+                      class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                      rows="5"
+                      placeholder="Descreva o evento de segurança de forma objetiva: o que aconteceu, quando foi detectado e qual o contexto inicial observado..."></textarea>
+            <span asp-validation-for="EventSummary" class="text-danger small"></span>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-header border-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-cpu-fill text-info"></i>
+            <strong class="title">3. Detalhes Técnicos</strong>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label asp-for="AffectedUser" class="form-label field-title"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary border-secondary text-light">
+                            <i class="bi bi-person"></i>
+                        </span>
+                        <input asp-for="AffectedUser"
+                               class="form-control bg-dark-subtle text-light border-secondary"
+                               placeholder="DOMAIN\usuario" />
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="IpAddress" class="form-label field-title"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary border-secondary text-light">
+                            <i class="bi bi-router"></i>
+                        </span>
+                        <input asp-for="IpAddress"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                               placeholder="192.168.1.100" />
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="Host" class="form-label field-title"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary border-secondary text-light">
+                            <i class="bi bi-pc-display"></i>
+                        </span>
+                        <input asp-for="Host"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                               placeholder="HOSTNAME-001" />
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="FileName" class="form-label field-title"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary border-secondary text-light">
+                            <i class="bi bi-file-binary"></i>
+                        </span>
+                        <input asp-for="FileName"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                               placeholder="malware.exe" />
+                    </div>
+                </div>
+
+                <div class="col-md-8">
+                    <label asp-for="Sha1Hash" class="form-label field-title">
+                        Hash (SHA1)
+                        <button type="button"
+                                class="btn btn-sm btn-outline-secondary ms-2 py-0 px-2"
+                                id="copyHashBtn"
+                                title="Copiar hash">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </label>
+                    <input asp-for="Sha1Hash"
+                           class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                           placeholder="da39a3ee5e6b4b0d3255bfef95601890afd80709"
+                           maxlength="40"
+                           id="sha1Input" />
+                    <span asp-validation-for="Sha1Hash" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="FilePath" class="form-label field-title"></label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-secondary border-secondary text-light">
+                            <i class="bi bi-folder2-open"></i>
+                        </span>
+                        <input asp-for="FilePath"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                               placeholder="C:\Users\usuario\AppData\Local\Temp\malware.exe" />
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="FileSignature" class="form-label field-title"></label>
+                    <input asp-for="FileSignature"
+                           class="form-control bg-dark-subtle text-light border-secondary"
+                           placeholder="ex: Não assinado / Microsoft Corporation / Certificado revogado" />
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-header border-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-shield-check text-info"></i>
+            <strong class="title">4. Avaliação e Ações</strong>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label asp-for="SelectedSocAction" class="form-label field-title"></label>
+                    <select asp-for="SelectedSocAction" 
+                            asp-items="Html.GetEnumSelectList<SocAction>()" 
+                            class="form-select bg-dark-subtle w-25">
+                        <option  value="">Selecione a avaliação...</option>
+                    </select>
+                    <span asp-validation-for="SelectedSocAction" class="text-danger small"></span>
+                    <textarea asp-for="SocAssessment"
+                              class="form-control bg-dark-subtle text-light border-secondary"
+                              rows="4"
+                              placeholder="Análise realizada pelo analista SOC: contexto do alerta, confirmação ou descarte de falso-positivo, IOCs identificados..."></textarea>
+                    <span asp-validation-for="SocAssessment" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="RecommendedActions" class="form-label field-title"></label>
+                    <textarea asp-for="RecommendedActions"
+                              class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                              rows="6"
+                              placeholder="- Isolar o host afetado&#10;  - Verificar processos ativos em execução&#10;  - Analisar conexões de rede suspeitas&#10;- Remover o arquivo malicioso identificado&#10;- Redefinir credenciais do usuário comprometido&#10;- Acionar o time de resposta a incidentes"></textarea>
+                    <div class="form-text text-secondary bullet-hint">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Use <code>-</code> para bullet principal &nbsp;|&nbsp;
+                        Use <code>&nbsp;&nbsp;-</code> (2 espaços + hífen) para sub-bullet
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="FinalObservation" class="form-label field-title"></label>
+                    <textarea asp-for="FinalObservation"
+                              class="form-control bg-dark-subtle text-light border-secondary"
+                              rows="3"
+                              placeholder="Observações adicionais, links para threat intel, tickets relacionados, etc."></textarea>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-header border-secondary d-flex align-items-center gap-2">
+            <i class="bi bi-images text-info"></i>
+            <strong class="title">5. Evidências do Evento</strong>
+            <span class="badge bg-secondary ms-auto" id="imageCount">0 arquivo(s)</span>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label asp-for="EvidenceImages" class="form-label field-title">
+                    Imagens de Evidência
+                    <span class="label-note">(JPEG, PNG, GIF, BMP — máx. 20 MB cada)</span>
+                </label>
+                <input asp-for="EvidenceImages"
+                       type="file"
+                       class="form-control bg-dark-subtle text-light border-secondary"
+                       id="evidenceInput"
+                       accept="image/jpeg,image/png,image/gif,image/bmp,image/webp"
+                       multiple />
+                <span asp-validation-for="EvidenceImages" class="text-danger small"></span>
+            </div>
+
+            <div id="imagePreviewContainer" class="row g-2 mt-1" style="display:none!important">
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-3 pb-4 flex-wrap">
+        <button type="reset" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-arrow-counterclockwise me-2"></i>Limpar Formulário
+        </button>
+        <button type="submit"
+                formaction="@Url.Action("GeneratePdf", "Report")"
+                class="btn btn-danger fw-bold px-4"
+                id="submitPdfBtn"
+                data-label="Gerar PDF">
+            <span class="btn-idle">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Gerar PDF
+            </span>
+            <span class="btn-loading d-none">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Gerando PDF...
+            </span>
+        </button>
+        <button type="submit"
+                class="btn btn-info text-dark fw-bold px-5"
+                id="submitDocxBtn"
+                data-label="Gerar DOCX">
+            <span class="btn-idle">
+                <i class="bi bi-file-earmark-word me-2"></i>Gerar DOCX
+            </span>
+            <span class="btn-loading d-none">
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Gerando DOCX...
+            </span>
+        </button>
+    </div>
+
+</form>
+
+@section Scripts {
+<script>
+const input     = document.getElementById('evidenceInput');
+const container = document.getElementById('imagePreviewContainer');
+const countBadge = document.getElementById('imageCount');
+
+input.addEventListener('change', () => {
+    container.innerHTML = '';
+    const files = Array.from(input.files);
+    countBadge.textContent = `${files.length} arquivo(s)`;
+
+    if (files.length === 0) {
+        container.style.setProperty('display', 'none', 'important');
+        return;
+    }
+
+    container.style.removeProperty('display');
+
+    files.forEach((file, idx) => {
+        if (!file.type.startsWith('image/')) return;
+
+        const reader = new FileReader();
+        reader.onload = e => {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-4 col-lg-3';
+            col.innerHTML = `
+                <div class="card bg-dark border-secondary h-100">
+                    <img src="${e.target.result}"
+                         class="card-img-top object-fit-cover"
+                         style="height:140px"
+                         alt="Evidência ${idx + 1}" />
+                    <div class="card-footer border-secondary p-1">
+                        <small class="text-truncate d-block text-secondary"
+                               title="${file.name}">${file.name}</small>
+                        <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
+                    </div>
+                </div>`;
+            container.appendChild(col);
+        };
+        reader.readAsDataURL(file);
+    });
+});
+
+const copyBtn  = document.getElementById('copyHashBtn');
+const sha1Inp  = document.getElementById('sha1Input');
+
+copyBtn?.addEventListener('click', async () => {
+    if (!sha1Inp.value) return;
+    await navigator.clipboard.writeText(sha1Inp.value);
+    copyBtn.innerHTML = '<i class="bi bi-clipboard-check text-success"></i>';
+    setTimeout(() => { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
+});
+
+const form         = document.getElementById('reportForm');
+const submitBtns   = form.querySelectorAll('button[type="submit"]');
+
+let clickedBtn = null;
+
+submitBtns.forEach(btn => {
+    btn.addEventListener('click', () => { clickedBtn = btn; });
+});
+
+form.addEventListener('submit', () => {
+    if (form.checkValidity() && clickedBtn) {
+        submitBtns.forEach(b => { b.disabled = true; });
+        clickedBtn.querySelector('.btn-idle').classList.add('d-none');
+        clickedBtn.querySelector('.btn-loading').classList.remove('d-none');
+        setTimeout(() => {
+            submitBtns.forEach(b => { b.disabled = false; });
+            clickedBtn.querySelector('.btn-idle').classList.remove('d-none');
+            clickedBtn.querySelector('.btn-loading').classList.add('d-none');
+            clickedBtn = null;
+        }, 30_000);
+    }
+});
+
+const severitySelect    = document.getElementById('severitySelect');
+const severityBadge     = document.getElementById('severityBadge');
+const severityBar       = document.getElementById('severityBar');
+const severityIndicator = document.getElementById('severityIndicator');
+
+const severityData = {
+    '0': { label: '', pct: 10,  color: 'var(--sev-informational)' },
+    '1': { label: '',         pct: 25,  color: 'var(--sev-low)'           },
+    '2': { label: '',         pct: 50,  color: 'var(--sev-medium)'        },
+    '3': { label: '',          pct: 75,  color: 'var(--sev-high)'          },
+    '4': { label: '',       pct: 100, color: 'var(--sev-critical)'      },
+};
+
+function updateSeverityStyle() {
+    const val = severitySelect.value;
+    const sev = severityData[val];
+
+    severitySelect.dataset.severity = val;
+
+    if (sev) {
+        severityBadge.textContent   = sev.label;
+        severityBadge.dataset.level = val;
+        severityBar.value           = sev.pct;
+        severityBar.style.setProperty('--bar-color', sev.color);
+        severityIndicator.style.display = 'flex';
+    } else {
+        severityIndicator.style.display = 'none';
+    }
+}
+
+severitySelect?.addEventListener('change', updateSeverityStyle);
+updateSeverityStyle();
+</script>
+}

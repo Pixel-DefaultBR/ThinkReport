@@ -1,0 +1,18 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.log
+
+## Publish
+publish/
+out/
+
+## ASP.NET
+wwwroot/templates/*.docx
+
+## OS
+Thumbs.db
+.DS_Store
