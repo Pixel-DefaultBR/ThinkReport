@@ -3,57 +3,137 @@
     ViewData["Title"] = "Novo Relatório de Incidente";
 }
 
-<div class="d-flex align-items-center gap-3 mb-4">
-    <div class="bg-info bg-opacity-10 border border-info rounded p-2">
-        <i class="bi bi-file-earmark-text-fill text-info fs-3"></i>
+@* ── Page Header ──────────────────────────────────────────────────────── *@
+<div class="mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <div class="page-header-icon">
+            <i class="bi bi-file-earmark-text-fill"></i>
+        </div>
+        <div>
+            <h1 class="h5 mb-0 fw-bold">Relatório de Incidente</h1>
+            <p class="text-secondary mb-0 small mt-1">
+                Preencha os campos e clique em <strong class="text-info">Gerar DOCX</strong> ou <strong class="text-info">Gerar PDF</strong>
+                para baixar o relatório pronto para envio ao cliente.
+            </p>
+        </div>
     </div>
-    <div>
-        <h1 class="h4 mb-0 fw-bold">Relatório de Incidente</h1>
-        <p class="text-secondary mb-0 small">
-            Preencha os campos e clique em <strong>Gerar DOCX</strong> ou <strong>Gerar PDF</strong>
-            para baixar o relatório pronto para envio ao cliente.
-        </p>
-    </div>
+    <div class="page-header-accent mt-3"></div>
 </div>
 
 @if (!ViewData.ModelState.IsValid)
 {
-    <div class="alert alert-danger alert-dismissible fade show d-flex gap-2" role="alert">
-        <i class="bi bi-exclamation-triangle-fill fs-5 flex-shrink-0 mt-1"></i>
-        <div>
-            <strong>Corrija os erros abaixo antes de continuar:</strong>
-            <div asp-validation-summary="All" class="mt-1 mb-0"></div>
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1200">
+        <div id="errorToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header border-0" style="background:var(--sev-critical);color:#fff">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong class="me-auto">Corrija os erros antes de continuar</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" style="background:#2a1010;color:#f5c6c6;font-size:0.875rem">
+                <div asp-validation-summary="All" class="mb-0"></div>
+            </div>
         </div>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
     </div>
 }
+
+@* ── AI Panel ────────────────────────────────────────────────────────── *@
+<div class="card bg-dark border-secondary mb-4" id="aiPanel">
+    <div class="card-header border-secondary d-flex align-items-center gap-2"
+         style="cursor:pointer;background:var(--bg-raised)"
+         data-bs-toggle="collapse" data-bs-target="#aiPanelBody"
+         aria-expanded="true" aria-controls="aiPanelBody">
+        <i class="bi bi-stars text-info"></i>
+        <strong class="title">Preencher com IA</strong>
+        <span class="badge ms-1 px-2 py-1"
+              style="font-size:0.6rem;background:var(--accent);color:var(--text-main);letter-spacing:0.07em;font-family:var(--font-heading)">BETA</span>
+        <i class="bi bi-chevron-down ms-auto text-secondary" id="aiChevron"></i>
+    </div>
+    <div class="collapse show" id="aiPanelBody">
+        <div class="card-body p-4">
+            <p class="text-secondary small mb-3">
+                Cole os dados brutos do incidente (alertas, logs, descrições) e clique em
+                <strong class="text-info">Preencher com IA</strong>. Os campos serão preenchidos
+                automaticamente. <strong>Revise sempre os dados gerados antes de exportar.</strong>
+            </p>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label for="aiRawText" class="form-label field-title">Dados Brutos do Incidente</label>
+                    <textarea id="aiRawText"
+                              class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                              rows="7"
+                              placeholder="Cole aqui o texto do alerta, e-mail, descrição do incidente, saída de ferramentas SIEM, etc..."></textarea>
+                </div>
+                <div class="col-md-4 d-flex flex-column gap-3">
+                    <div>
+                        <label for="aiLogFiles" class="form-label field-title">
+                            Logs Opcionais
+                            <span class="label-note">(.txt, .log, .json — máx. 3, 1 MB cada)</span>
+                        </label>
+                        <input type="file" id="aiLogFiles" name="LogFiles"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace file-input"
+                               accept=".txt,.log,.json" multiple />
+                    </div>
+                    <div class="d-flex flex-column gap-2">
+                        <button type="button" class="btn btn-info fw-bold w-100" id="aiFillBtn">
+                            <span id="aiBtnIdle">
+                                <i class="bi bi-stars me-2"></i>Preencher com IA
+                            </span>
+                            <span id="aiBtnLoading" class="d-none">
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                Analisando...
+                            </span>
+                        </button>
+                        <span id="aiStatusMsg" class="small text-center d-block"></span>
+                    </div>
+                    <div class="p-2 rounded mt-auto" style="background:rgba(76,114,145,0.08);border-left:3px solid var(--accent)">
+                        <small class="text-secondary">
+                            <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+                            <strong>Disclaimer:</strong> A IA pode conter imprecisões.
+                            Revise todos os campos antes de exportar o relatório.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <form asp-action="Generate" asp-controller="Report"
       method="post" enctype="multipart/form-data"
       id="reportForm" novalidate>
 
     @Html.AntiForgeryToken()
-    <div class="card bg-dark border-secondary mb-4">
-        <div class="card-header border-secondary d-flex align-items-center gap-2">
-            <i class="bi bi-file-earmark-text text-info"></i>
+
+    @* Sumário Executivo *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-2"
+             style="background:var(--bg-raised)">
+            <i class="bi bi-file-earmark-text text-info opacity-75"></i>
             <strong class="title">Sumário Executivo</strong>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <label asp-for="ExecutiveSummary" class="form-label field-title"></label>
             <textarea asp-for="ExecutiveSummary"
-                      class="form-control bg-dark-subtle text-light border-secondary"
+                      class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                       rows="4"
                       placeholder="Breve descrição do incidente para o cliente: o que foi detectado, qual ferramenta identificou, e o status atual (ex: mitigado, em investigação)..."></textarea>
             <span asp-validation-for="ExecutiveSummary" class="text-danger small"></span>
         </div>
     </div>
 
-    <div class="card bg-dark border-secondary mb-4">
-        <div class="card-header border-secondary d-flex align-items-center gap-2">
-            <i class="bi bi-bell-fill text-info"></i>
-            <strong class="title">1. Informações do Alerta</strong>
+    @* 1. Informações do Alerta *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-3"
+             style="background:var(--bg-raised)">
+              <div class="d-flex gap-2 align-items-center">
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+            </div>
+            <strong class="title">Informações do Alerta</strong>
+            <i class="bi bi-bell-fill text-info ms-auto opacity-50" style="font-size:0.85rem"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label asp-for="AlertId" class="form-label field-title"></label>
@@ -61,22 +141,22 @@
                         <span class="input-group-text bg-secondary border-secondary text-light">
                             <i class="bi bi-hash"></i>
                         </span>
-                        <input asp-for="AlertId" class="form-control bg-dark-subtle text-light border-secondary"
+                        <input asp-for="AlertId" class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                                placeholder="ex: ALT-2025-00421" autocomplete="off" />
                     </div>
                     <span asp-validation-for="AlertId" class="text-danger small"></span>
                 </div>
                 <div class="col-md-8">
                     <label asp-for="Title" class="form-label field-title"></label>
-                    <input asp-for="Title" class="form-control bg-dark-subtle text-light border-secondary"
+                    <input asp-for="Title" class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                            placeholder="ex: Execução de PowerShell com parâmetros ofuscados" />
                     <span asp-validation-for="Title" class="text-danger small"></span>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label asp-for="Severity" class="form-label field-title"></label>
                     <select asp-for="Severity"
                             asp-items="Html.GetEnumSelectList<SeverityLevel>()"
-                            class="form-select bg-dark-subtle border-secondary fw-bold"
+                            class="form-select bg-dark-subtle border-secondary fw-bold font-monospace"
                             id="severitySelect">
                     </select>
                     <div id="severityIndicator" style="display:none; margin-top:0.5rem; align-items:center; gap:0.5rem">
@@ -85,43 +165,78 @@
                     </div>
                     <span asp-validation-for="Severity" class="text-danger small"></span>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label asp-for="IncidentDateTimeUtc" class="form-label field-title"></label>
                     <input asp-for="IncidentDateTimeUtc"
                            type="datetime-local"
-                           class="form-control bg-dark-subtle text-light border-secondary"
+                           class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                            value="@Model.IncidentDateTimeUtc.ToString("yyyy-MM-ddTHH:mm")" />
                     <div class="form-text text-secondary">Fuso: UTC</div>
                     <span asp-validation-for="IncidentDateTimeUtc" class="text-danger small"></span>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label asp-for="ItsmTicketNumber" class="form-label field-title"></label>
                     <input asp-for="ItsmTicketNumber"
-                           class="form-control bg-dark-subtle text-light border-secondary"
+                           class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                            placeholder="ex: INC0012345" />
                 </div>
-                <div class="col-md-3">
-                    <label asp-for="MitreTactic" class="form-label field-title"></label>
-                    <select asp-for="MitreTactic"
-                            class="form-select bg-dark-subtle text-light border-secondary">
-                        <option value="">— Selecione —</option>
+            </div>
+
+            <hr class="border-secondary my-4">
+
+            <label class="form-label field-title">Tática(s) MITRE ATT&CK</label>
+            <div class="row g-3 align-items-start">
+                <div class="col-md-5">
+                    <div class="mitre-check-list" id="mitreTacticList">
                         @foreach (var (id, name) in MitreTactics.All)
                         {
-                            <option value="@id — @name">@id — @name</option>
+                            <div class="form-check mitre-check-item">
+                                <input class="form-check-input mitre-checkbox"
+                                       type="checkbox"
+                                       name="MitreTactic"
+                                       value="@id — @name"
+                                       id="mitre_@id" />
+                                <label class="form-check-label mitre-check-label" for="mitre_@id">
+                                    <span class="mitre-id">@id</span>
+                                    <span class="mitre-name">@name</span>
+                                </label>
+                            </div>
                         }
-                    </select>
+                    </div>
+                    <div class="input-group input-group-sm mt-2">
+                        <input type="text" id="mitreCustomInput"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                               placeholder="ex: TA0043 — Reconnaissance"
+                               autocomplete="off" />
+                        <button type="button" class="btn btn-outline-secondary" id="mitreAddBtn" title="Adicionar tática">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div id="mitreCustomInputs"></div>
                 </div>
-
+                <div class="col-md-7">
+                    <div class="small text-muted mb-2">
+                        <i class="bi bi-tags me-1 mitre-note"></i><span class="mitre-note">Táticas selecionadas:</span>
+                    </div>
+                    <div id="mitreBubbles" class="d-flex flex-wrap gap-1 p-3 rounded mitre-bubbles-panel"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="card bg-dark border-secondary mb-4">
-        <div class="card-header border-secondary d-flex align-items-center gap-2">
-            <i class="bi bi-journal-text text-info"></i>
-            <strong class="title">2. Resumo do Evento</strong>
+    @* 2. Resumo do Evento *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-3"
+             style="background:var(--bg-raised)">
+            <div class="d-flex gap-2 align-items-center">
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+            </div>
+            <strong class="title">Resumo do Evento</strong>
+            <i class="bi bi-journal-text text-info ms-auto opacity-50" style="font-size:0.85rem"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <label asp-for="EventSummary" class="form-label field-title"></label>
             <textarea asp-for="EventSummary"
                       class="form-control bg-dark-subtle text-light border-secondary font-monospace"
@@ -131,14 +246,20 @@
         </div>
     </div>
 
-    <div class="card bg-dark border-secondary mb-4">
-        <div class="card-header border-secondary d-flex align-items-center gap-2">
-            <i class="bi bi-cpu-fill text-info"></i>
-            <strong class="title">3. Detalhes Técnicos</strong>
+    @* 3. Detalhes Técnicos *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-3"
+             style="background:var(--bg-raised)">
+            <div class="d-flex gap-2 align-items-center">
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+            </div>
+            <strong class="title">Detalhes Técnicos</strong>
+            <i class="bi bi-cpu-fill text-info ms-auto opacity-50" style="font-size:0.85rem"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <div class="row g-3">
-
                 <div class="col-md-4">
                     <label asp-for="AffectedUser" class="form-label field-title"></label>
                     <div class="input-group">
@@ -146,7 +267,7 @@
                             <i class="bi bi-person"></i>
                         </span>
                         <input asp-for="AffectedUser"
-                               class="form-control bg-dark-subtle text-light border-secondary"
+                               class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                                placeholder="DOMAIN\usuario" />
                     </div>
                 </div>
@@ -205,7 +326,7 @@
                     <span asp-validation-for="Sha1Hash" class="text-danger small"></span>
                 </div>
 
-                <div class="col-md-12">
+                <div class="col-12">
                     <label asp-for="FilePath" class="form-label field-title"></label>
                     <div class="input-group">
                         <span class="input-group-text bg-secondary border-secondary text-light">
@@ -217,37 +338,56 @@
                     </div>
                 </div>
 
-                <div class="col-md-12">
+                <div class="col-12">
                     <label asp-for="FileSignature" class="form-label field-title"></label>
                     <input asp-for="FileSignature"
-                           class="form-control bg-dark-subtle text-light border-secondary"
+                           class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                            placeholder="ex: Não assinado / Microsoft Corporation / Certificado revogado" />
                 </div>
-
             </div>
         </div>
     </div>
 
-    <div class="card bg-dark border-secondary mb-4">
-        <div class="card-header border-secondary d-flex align-items-center gap-2">
-            <i class="bi bi-shield-check text-info"></i>
-            <strong class="title">4. Avaliação e Ações</strong>
+    @* 4. Avaliação e Ações *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-3"
+             style="background:var(--bg-raised)">
+             <div class="d-flex gap-2 align-items-center">
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+            </div>
+            <strong class="title">Avaliação e Ações</strong>
+            <i class="bi bi-shield-check text-info ms-auto opacity-50" style="font-size:0.85rem"></i>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <div class="row g-3">
                 <div class="col-12">
                     <label asp-for="SelectedSocAction" class="form-label field-title"></label>
-                    <select asp-for="SelectedSocAction" 
-                            asp-items="Html.GetEnumSelectList<SocAction>()" 
-                            class="form-select bg-dark-subtle w-25">
-                        <option  value="">Selecione a avaliação...</option>
+                    <select asp-for="SelectedSocAction"
+                            asp-items="Html.GetEnumSelectList<SocAction>()"
+                            class="form-select bg-dark-subtle w-25 font-monospace"
+                            id="socActionSelect">
+                        <option value="">Selecione a avaliação...</option>
                     </select>
                     <span asp-validation-for="SelectedSocAction" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label id="socAssessmentLabel" class="form-label field-title">Avaliação do SOC</label>
                     <textarea asp-for="SocAssessment"
-                              class="form-control bg-dark-subtle text-light border-secondary"
+                              class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                               rows="4"
                               placeholder="Análise realizada pelo analista SOC: contexto do alerta, confirmação ou descarte de falso-positivo, IOCs identificados..."></textarea>
                     <span asp-validation-for="SocAssessment" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12" id="socActionsTakenSection" style="display:none">
+                    <label asp-for="SocActionsTaken" class="form-label field-title"></label>
+                    <textarea asp-for="SocActionsTaken"
+                              class="form-control bg-dark-subtle text-light border-secondary font-monospace"
+                              rows="4"
+                              placeholder="Descreva as ações tomadas pelo SOC: isolamento, bloqueio, escalação, remediação aplicada..."></textarea>
                 </div>
 
                 <div class="col-12">
@@ -266,22 +406,27 @@
                 <div class="col-12">
                     <label asp-for="FinalObservation" class="form-label field-title"></label>
                     <textarea asp-for="FinalObservation"
-                              class="form-control bg-dark-subtle text-light border-secondary"
+                              class="form-control bg-dark-subtle text-light border-secondary font-monospace"
                               rows="3"
                               placeholder="Observações adicionais, links para threat intel, tickets relacionados, etc."></textarea>
                 </div>
-
             </div>
         </div>
     </div>
 
-    <div class="card bg-dark border-secondary mb-4">
-        <div class="card-header border-secondary d-flex align-items-center gap-2">
-            <i class="bi bi-images text-info"></i>
-            <strong class="title">5. Evidências do Evento</strong>
+    @* 5. Evidências do Evento *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-3"
+             style="background:var(--bg-raised)">
+            <div class="d-flex gap-2 align-items-center">
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+            </div>
+            <strong class="title">Evidências do Evento</strong>
             <span class="badge bg-secondary ms-auto" id="imageCount">0 arquivo(s)</span>
         </div>
-        <div class="card-body">
+        <div class="card-body p-4">
             <div class="mb-3">
                 <label asp-for="EvidenceImages" class="form-label field-title">
                     Imagens de Evidência
@@ -289,53 +434,61 @@
                 </label>
                 <input asp-for="EvidenceImages"
                        type="file"
-                       class="form-control bg-dark-subtle text-light border-secondary"
+                       class="form-control bg-dark-subtle text-light border-secondary font-monospace file-input"
                        id="evidenceInput"
                        accept="image/jpeg,image/png,image/gif,image/bmp,image/webp"
                        multiple />
                 <span asp-validation-for="EvidenceImages" class="text-danger small"></span>
             </div>
-
             <div id="imagePreviewContainer" class="row g-2 mt-1" style="display:none!important">
             </div>
         </div>
     </div>
 
-    <div class="d-flex justify-content-end gap-3 pb-4 flex-wrap">
-        <button type="reset" class="btn btn-outline-secondary px-4">
+    @* Action Bar *@
+    <div class="action-bar d-flex justify-content-between align-items-center gap-3 flex-wrap">
+        <button type="reset" class="btn btn-outline-secondary px-4 font-monospace">
             <i class="bi bi-arrow-counterclockwise me-2"></i>Limpar Formulário
         </button>
-        <button type="submit"
-                formaction="@Url.Action("GeneratePdf", "Report")"
-                class="btn btn-danger fw-bold px-4"
-                id="submitPdfBtn"
-                data-label="Gerar PDF">
-            <span class="btn-idle">
-                <i class="bi bi-file-earmark-pdf me-2"></i>Gerar PDF
-            </span>
-            <span class="btn-loading d-none">
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                Gerando PDF...
-            </span>
-        </button>
-        <button type="submit"
-                class="btn btn-info text-dark fw-bold px-5"
-                id="submitDocxBtn"
-                data-label="Gerar DOCX">
-            <span class="btn-idle">
-                <i class="bi bi-file-earmark-word me-2"></i>Gerar DOCX
-            </span>
-            <span class="btn-loading d-none">
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                Gerando DOCX...
-            </span>
-        </button>
+        <div class="d-flex gap-3 flex-wrap">
+            <button type="submit"
+                    formaction="@Url.Action("GeneratePdf", "Report")"
+                    class="btn btn-danger fw-bold px-4"
+                    id="submitPdfBtn"
+                    data-label="Gerar PDF">
+                <span class="btn-idle">
+                    <i class="bi bi-file-earmark-pdf"></i>
+                </span>
+                <span class="btn-loading d-none">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    Gerando PDF...
+                </span>
+            </button>
+            <button type="submit"
+                    class="btn btn-info fw-bold px-5"
+                    id="submitDocxBtn"
+                    data-label="Gerar DOCX">
+                <span class="btn-idle">
+                    <i class="bi bi-file-earmark-word"></i>
+                </span>
+                <span class="btn-loading d-none">
+                    <span class="spinner-border spinner-border-sm" role="status"></span>
+                    Gerando DOCX...
+                </span>
+            </button>
+        </div>
     </div>
 
 </form>
 
 @section Scripts {
 <script>
+// ── Error toast (server-side validation) ─────────────────────────────────
+const errorToastEl = document.getElementById('errorToast');
+if (errorToastEl && typeof bootstrap !== 'undefined') {
+    new bootstrap.Toast(errorToastEl, { delay: 5000 }).show();
+}
+
 const input     = document.getElementById('evidenceInput');
 const container = document.getElementById('imagePreviewContainer');
 const countBadge = document.getElementById('imageCount');
@@ -365,11 +518,6 @@ input.addEventListener('change', () => {
                          class="card-img-top object-fit-cover"
                          style="height:140px"
                          alt="Evidência ${idx + 1}" />
-                    <div class="card-footer border-secondary p-1">
-                        <small class="text-truncate d-block text-secondary"
-                               title="${file.name}">${file.name}</small>
-                        <small class="text-muted">${(file.size / 1024).toFixed(1)} KB</small>
-                    </div>
                 </div>`;
             container.appendChild(col);
         };
@@ -442,5 +590,238 @@ function updateSeverityStyle() {
 
 severitySelect?.addEventListener('change', updateSeverityStyle);
 updateSeverityStyle();
+
+// ── SOC Action dynamic UI ─────────────────────────────────────────────────
+const socActionSelect        = document.getElementById('socActionSelect');
+const socAssessmentLabel     = document.getElementById('socAssessmentLabel');
+const socActionsTakenSection = document.getElementById('socActionsTakenSection');
+
+const socAssessmentLabels = { '0': 'Avaliação do SOC', '1': 'Ações Tomadas pelo SOC', '2': 'Avaliação do SOC' };
+
+function updateSocActionUI() {
+    const val = socActionSelect?.value ?? '0';
+    if (socAssessmentLabel) socAssessmentLabel.textContent = socAssessmentLabels[val] ?? 'Avaliação do SOC';
+    if (socActionsTakenSection) socActionsTakenSection.style.display = val === '2' ? 'block' : 'none';
+}
+
+socActionSelect?.addEventListener('change', updateSocActionUI);
+updateSocActionUI();
+
+// ── MITRE Checkbox Bubbles ────────────────────────────────────────────────
+const mitreBubblesEl      = document.getElementById('mitreBubbles');
+const mitreCheckboxes     = document.querySelectorAll('.mitre-checkbox');
+const mitreCustomInputsEl = document.getElementById('mitreCustomInputs');
+const mitreCustomInput    = document.getElementById('mitreCustomInput');
+const mitreAddBtn         = document.getElementById('mitreAddBtn');
+
+function createBubble(label, onRemove) {
+    const [tacticId] = label.split(' — ');
+    const bubble = document.createElement('span');
+    bubble.className = 'mitre-bubble';
+    bubble.title = label;
+    bubble.innerHTML =
+        `<span>${tacticId}</span>` +
+        `<button type="button" class="bubble-close"><i class="bi bi-x-lg"></i></button>`;
+    bubble.querySelector('.bubble-close').addEventListener('click', onRemove);
+    return bubble;
+}
+
+function getCustomTactics() {
+    return Array.from(mitreCustomInputsEl.querySelectorAll('input'))
+                .map(i => i.value);
+}
+
+function removeCustom(val) {
+    mitreCustomInputsEl.querySelectorAll('input').forEach(i => {
+        if (i.value === val) i.remove();
+    });
+    updateMitreBubbles();
+}
+
+function addCustom(val) {
+    val = val.trim();
+    if (!val) return;
+    const alreadyChecked = [...mitreCheckboxes].some(cb => cb.value.trim() === val && cb.checked);
+    const alreadyCustom  = getCustomTactics().includes(val);
+    if (alreadyChecked || alreadyCustom) return;
+    const hidden = document.createElement('input');
+    hidden.type  = 'hidden';
+    hidden.name  = 'MitreTactic';
+    hidden.value = val;
+    mitreCustomInputsEl.appendChild(hidden);
+    updateMitreBubbles();
+}
+
+function updateMitreBubbles() {
+    mitreBubblesEl.innerHTML = '';
+    mitreCheckboxes.forEach(cb => {
+        if (!cb.checked) return;
+        mitreBubblesEl.appendChild(createBubble(cb.value, () => {
+            cb.checked = false;
+            updateMitreBubbles();
+        }));
+    });
+    getCustomTactics().forEach(val => {
+        mitreBubblesEl.appendChild(createBubble(val, () => removeCustom(val)));
+    });
+}
+
+mitreCheckboxes.forEach(cb => cb.addEventListener('change', updateMitreBubbles));
+
+mitreAddBtn.addEventListener('click', () => {
+    addCustom(mitreCustomInput.value);
+    mitreCustomInput.value = '';
+    mitreCustomInput.focus();
+});
+
+mitreCustomInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); mitreAddBtn.click(); }
+});
+
+updateMitreBubbles();
+
+// ── AI Auto-Fill ──────────────────────────────────────────────────────────
+(function () {
+    const fillBtn     = document.getElementById('aiFillBtn');
+    const rawTextArea = document.getElementById('aiRawText');
+    const logFilesEl  = document.getElementById('aiLogFiles');
+    const statusMsg   = document.getElementById('aiStatusMsg');
+    const btnIdle     = document.getElementById('aiBtnIdle');
+    const btnLoading  = document.getElementById('aiBtnLoading');
+    const chevron     = document.getElementById('aiChevron');
+
+    // Chevron toggle
+    document.getElementById('aiPanelBody')?.addEventListener('show.bs.collapse',  () => chevron?.classList.replace('bi-chevron-up',   'bi-chevron-down'));
+    document.getElementById('aiPanelBody')?.addEventListener('hide.bs.collapse',  () => chevron?.classList.replace('bi-chevron-down', 'bi-chevron-up'));
+
+    function setLoading(on) {
+        fillBtn.disabled = on;
+        btnIdle.classList.toggle('d-none', on);
+        btnLoading.classList.toggle('d-none', !on);
+    }
+
+    function showStatus(msg, isError) {
+        statusMsg.textContent = msg;
+        statusMsg.style.color = isError ? 'var(--bs-danger, #dc3545)' : '#5adb8a';
+    }
+
+    function toDatetimeLocal(iso) {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            if (isNaN(d)) return '';
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+        } catch { return ''; }
+    }
+
+    function setSelect(name, value) {
+        if (value === null || value === undefined) return;
+        const el = document.querySelector(`[name="${name}"]`);
+        if (!el) return;
+        const strVal = String(value);
+        for (const opt of el.options) {
+            if (opt.value === strVal) { el.value = strVal; return; }
+        }
+        for (const opt of el.options) {
+            if (opt.text.trim() === strVal) { el.value = opt.value; return; }
+        }
+    }
+
+    function setMitreTactics(arr) {
+        if (!Array.isArray(arr)) return;
+        // Clear predefined
+        mitreCheckboxes.forEach(cb => { cb.checked = false; });
+        // Clear custom
+        mitreCustomInputsEl.innerHTML = '';
+        arr.forEach(v => {
+            const strV = String(v).trim();
+            let matched = false;
+            mitreCheckboxes.forEach(cb => {
+                if (cb.value.trim() === strV) { cb.checked = true; matched = true; }
+            });
+            // If not in the predefined list, add as custom
+            if (!matched) addCustom(strV);
+        });
+        updateMitreBubbles();
+    }
+
+    function populateForm(r) {
+        function setText(name, val) {
+            if (val === null || val === undefined) return;
+            const el = document.querySelector(`[name="${name}"]`);
+            if (el) el.value = val;
+        }
+
+        setText('ExecutiveSummary',    r.executiveSummary);
+        setText('AlertId',             r.alertId);
+        setText('Title',               r.title);
+        setText('ItsmTicketNumber',    r.itsmTicketNumber);
+        setText('EventSummary',        r.eventSummary);
+        setText('AffectedUser',        r.affectedUser);
+        setText('IpAddress',           r.ipAddress);
+        setText('Host',                r.host);
+        setText('FileName',            r.fileName);
+        setText('Sha1Hash',            r.sha1Hash);
+        setText('FilePath',            r.filePath);
+        setText('FileSignature',       r.fileSignature);
+        setText('SocAssessment',       r.socAssessment);
+        setText('SocActionsTaken',     r.socActionsTaken);
+        setText('RecommendedActions',  r.recommendedActions);
+        setText('FinalObservation',    r.finalObservation);
+
+        // datetime-local
+        const dtVal = toDatetimeLocal(r.incidentDateTimeUtc);
+        if (dtVal) {
+            const dtEl = document.querySelector('[name="IncidentDateTimeUtc"]');
+            if (dtEl) dtEl.value = dtVal;
+        }
+
+        // select fields
+        setSelect('Severity',          r.severity);
+        setSelect('SelectedSocAction', r.selectedSocAction);
+        setMitreTactics(r.mitreTactic);
+
+        if (r.severity          !== null && r.severity          !== undefined) updateSeverityStyle();
+        if (r.selectedSocAction !== null && r.selectedSocAction !== undefined) updateSocActionUI();
+    }
+
+    fillBtn?.addEventListener('click', async () => {
+        const rawText = rawTextArea.value.trim();
+        if (!rawText) {
+            showStatus('Cole os dados brutos antes de prosseguir.', true);
+            return;
+        }
+
+        setLoading(true);
+        showStatus('', false);
+
+        try {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+            const fd    = new FormData();
+            fd.append('rawText', rawText);
+            fd.append('__RequestVerificationToken', token);
+
+            for (const file of (logFilesEl?.files ?? [])) {
+                fd.append('LogFiles', file);
+            }
+
+            const resp = await fetch('/Report/FillWithAI', { method: 'POST', body: fd });
+            const data = await resp.json();
+
+            if (data.error) {
+                showStatus(`Erro: ${data.error}`, true);
+            } else {
+                populateForm(data);
+                showStatus('Campos preenchidos com sucesso. Revise antes de exportar.', false);
+            }
+        } catch (err) {
+            showStatus('Falha na comunicação com o servidor.', true);
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    });
+})();
 </script>
 }

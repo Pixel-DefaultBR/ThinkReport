@@ -64,7 +64,7 @@ public sealed class PdfReportService : IPdfReportService
                         ("Severidade",        severity),
                         ("Data / Hora (UTC)", model.IncidentDateTimeUtc.ToString("yyyy-MM-dd HH:mm:ss") + " UTC"),
                         ("Nº Chamado ITSM",   model.ItsmTicketNumber  ?? "N/A"),
-                        ("Tática MITRE",      model.MitreTactic       ?? "N/A"),
+                        ("Tática MITRE",      model.MitreTactic.Count > 0 ? string.Join(" | ", model.MitreTactic) : "N/A"),
                     ]);
 
                     SectionTitle(col, "2. Resumo do Evento");
@@ -84,9 +84,19 @@ public sealed class PdfReportService : IPdfReportService
 
                     SectionTitle(col, "4. Avaliação e Ações");
 
-                    var actionLabel = $"{model.SelectedSocAction.GetDisplayName()}:";
-                    FieldLabel(col, actionLabel);
-                    col.Item().PaddingTop(2).Text(model.SocAssessment ?? "N/A");
+                    if (model.SelectedSocAction == SocAction.Both)
+                    {
+                        FieldLabel(col, "Avaliação do SOC:");
+                        col.Item().PaddingTop(2).Text(model.SocAssessment ?? "N/A");
+                        col.Item().PaddingTop(6);
+                        FieldLabel(col, "Ações Tomadas pelo SOC:");
+                        col.Item().PaddingTop(2).Text(model.SocActionsTaken ?? "N/A");
+                    }
+                    else
+                    {
+                        FieldLabel(col, $"{model.SelectedSocAction.GetDisplayName()}:");
+                        col.Item().PaddingTop(2).Text(model.SocAssessment ?? "N/A");
+                    }
 
                     FieldLabel(col, "Ações Recomendadas:");
                     if (bullets.Count == 0)

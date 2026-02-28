@@ -10,6 +10,7 @@ QuestPDF.Settings.License = LicenseType.Community;
 builder.Services.AddControllersWithViews();
 builder.Services.AddScoped<IWordReportService, WordReportService>();
 builder.Services.AddScoped<IPdfReportService, PdfReportService>();
+builder.Services.AddScoped<IAiExtractionService, AiExtractionService>();
 
 builder.Services.Configure<FormOptions>(options =>
 {

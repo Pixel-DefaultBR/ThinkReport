@@ -36,8 +36,8 @@ public sealed class WordReportService : IWordReportService
 
         using (var doc = WordprocessingDocument.Open(ms, isEditable: true))
         {
+            HandleSocActionsTakenSection(doc, model);
             InsertBulletActions(doc, model.RecommendedActions ?? string.Empty);
-
             ReplaceAllPlaceholders(doc, BuildReplacements(model));
 
             if (images.Count > 0)
@@ -61,7 +61,11 @@ public sealed class WordReportService : IWordReportService
             _                           => m.Severity.ToString()
         };
 
-        var actionLabel = m.SelectedSocAction.GetDisplayName() + ":";
+        var actionLabel = m.SelectedSocAction switch
+        {
+            SocAction.Both => "Avaliação do SOC:",
+            _              => m.SelectedSocAction.GetDisplayName() + ":"
+        };
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -71,7 +75,7 @@ public sealed class WordReportService : IWordReportService
             ["{{SEVERITY}}"]           = severityLabel,
             ["{{DATETIME_UTC}}"]       = m.IncidentDateTimeUtc.ToString("yyyy-MM-dd HH:mm:ss"),
             ["{{ITSM_TICKET}}"]        = m.ItsmTicketNumber      ?? "N/A",
-            ["{{MITRE_TACTIC}}"]       = m.MitreTactic           ?? "N/A",
+            ["{{MITRE_TACTIC}}"]       = m.MitreTactic.Count > 0 ? string.Join(" | ", m.MitreTactic) : "N/A",
             ["{{EVENT_SUMMARY}}"]      = m.EventSummary,
             ["{{USER}}"]               = m.AffectedUser          ?? "N/A",
             ["{{IP_ADDRESS}}"]         = m.IpAddress             ?? "N/A",
@@ -80,9 +84,11 @@ public sealed class WordReportService : IWordReportService
             ["{{SHA1_HASH}}"]          = m.Sha1Hash              ?? "N/A",
             ["{{FILE_PATH}}"]          = m.FilePath              ?? "N/A",
             ["{{FILE_SIGNATURE}}"]     = m.FileSignature         ?? "N/A",
-            ["{{SOC_ACTION_LABEL}}"]   = actionLabel,
-            ["{{SOC_ASSESSMENT}}"]     = m.SocAssessment,
-            ["{{FINAL_OBSERVATION}}"]  = m.FinalObservation ?? "N/A",
+            ["{{SOC_ACTION_LABEL}}"]          = actionLabel,
+            ["{{SOC_ASSESSMENT}}"]            = m.SocAssessment,
+            ["{{SOC_ACTIONS_TAKEN_LABEL}}"]   = "Ações Tomadas pelo SOC:",
+            ["{{SOC_ACTIONS_TAKEN}}"]         = m.SocActionsTaken ?? "N/A",
+            ["{{FINAL_OBSERVATION}}"]         = m.FinalObservation ?? "N/A",
             ["{{GENERATED_DATE}}"]     = DateTime.UtcNow.ToString("dd/MM/yyyy HH:mm:ss") + " UTC",
         };
     }
@@ -145,6 +151,26 @@ public sealed class WordReportService : IWordReportService
         }
 
         para.AppendChild(newRun);
+    }
+
+    private static void HandleSocActionsTakenSection(
+        WordprocessingDocument doc, IncidentReportViewModel model)
+    {
+        if (model.SelectedSocAction == SocAction.Both) return;
+
+        // Remove the "Ambos" placeholders if this is not a Both report
+        var body = doc.MainDocumentPart!.Document.Body!;
+        var toRemove = body.Descendants<Paragraph>()
+            .Where(p =>
+            {
+                var txt = string.Concat(p.Descendants<Text>().Select(t => t.Text));
+                return txt.Contains("{{SOC_ACTIONS_TAKEN_LABEL}}", StringComparison.Ordinal)
+                    || txt.Contains("{{SOC_ACTIONS_TAKEN}}", StringComparison.Ordinal);
+            })
+            .ToList();
+
+        foreach (var p in toRemove)
+            p.Remove();
     }
 
     private static void InsertBulletActions(WordprocessingDocument doc, string rawText)

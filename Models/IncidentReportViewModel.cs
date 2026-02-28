@@ -26,8 +26,8 @@ public sealed class IncidentReportViewModel
     [Display(Name = "Nº Chamado ITSM")]
     public string? ItsmTicketNumber { get; set; }
 
-    [Display(Name = "Tática MITRE ATT&CK")]
-    public string? MitreTactic { get; set; }
+    [Display(Name = "Tática(s) MITRE ATT&CK")]
+    public List<string> MitreTactic { get; set; } = [];
 
     [Required(ErrorMessage = "Resumo do evento é obrigatório.")]
     [Display(Name = "Resumo do Evento")]
@@ -60,7 +60,11 @@ public sealed class IncidentReportViewModel
     [Display(Name = "Tipo de Ação / Avaliação")]
     public SocAction SelectedSocAction {get; set; } =  SocAction.SocAvaliation;
     
+    [Required(ErrorMessage = "Avaliação do SOC é obrigatória.")]
     public string SocAssessment { get; set; } = string.Empty;
+
+    [Display(Name = "Ações Tomadas pelo SOC")]
+    public string? SocActionsTaken { get; set; }
 
     [Display(Name = "Ações Recomendadas")]
     public string? RecommendedActions { get; set; }

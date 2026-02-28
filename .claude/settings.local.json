@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"/c/Users/ventu/OneDrive/Área de Trabalho/Programming/CSharp/ThinkReport\" && dotnet restore 2>&1)"
+    ]
+  }
+}

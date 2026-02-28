@@ -10,9 +10,29 @@ public static class TemplateGenerator
 
     public static void EnsureTemplateExists(string templatePath)
     {
-        if (File.Exists(templatePath)) return;
+        if (File.Exists(templatePath) && IsCurrentVersion(templatePath)) return;
+
+        // Auto-regenerate if file is old version (missing SOC_ACTIONS_TAKEN placeholder)
+        if (File.Exists(templatePath)) File.Delete(templatePath);
+
         Directory.CreateDirectory(Path.GetDirectoryName(templatePath)!);
         CreateTemplate(templatePath);
+    }
+
+    private static bool IsCurrentVersion(string path)
+    {
+        try
+        {
+            using var doc = WordprocessingDocument.Open(path, isEditable: false);
+            var text = string.Concat(
+                doc.MainDocumentPart!.Document.Body!
+                   .Descendants<Text>().Select(t => t.Text));
+            // v3: SOC_ACTIONS_TAKEN_LABEL must exist AND appear BEFORE SOC_ACTION_LABEL
+            var takenIdx = text.IndexOf("{{SOC_ACTIONS_TAKEN_LABEL}}", StringComparison.Ordinal);
+            var socIdx   = text.IndexOf("{{SOC_ACTION_LABEL}}",        StringComparison.Ordinal);
+            return takenIdx >= 0 && socIdx >= 0 && takenIdx < socIdx;
+        }
+        catch { return false; }
     }
 
     public static void CreateTemplate(string outputPath)
@@ -100,6 +120,8 @@ public static class TemplateGenerator
         ]));
 
         body.AppendChild(SectionTitle("4. AVALIAÇÃO E AÇÕES"));
+        body.AppendChild(FieldLabel("{{SOC_ACTIONS_TAKEN_LABEL}}"));
+        body.AppendChild(ContentPara("{{SOC_ACTIONS_TAKEN}}"));
         body.AppendChild(FieldLabel("{{SOC_ACTION_LABEL}}"));
         body.AppendChild(ContentPara("{{SOC_ASSESSMENT}}"));
         body.AppendChild(FieldLabel("Ações Recomendadas:"));

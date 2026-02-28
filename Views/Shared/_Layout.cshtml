@@ -13,18 +13,29 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
           rel="stylesheet" />
 
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
+          rel="stylesheet" />
+
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="bg-dark text-light">
+<body class="text-light">
 
-    <nav class="navbar navbar-dark bg-black border-bottom border-secondary">
-        <div class="container-fluid">
-            <span class="navbar-brand d-flex align-items-center gap-2">
-                <i class="bi bi-shield-lock-fill text-info fs-4"></i>
-                <span class="fw-bold">ThinkIT</span>
-                <span class="text-secondary fw-light">| SOC Report Generator</span>
+    <div id="particles-js" aria-hidden="true"></div>
+
+    <nav class="navbar navbar-dark navbar-custom border-bottom border-secondary">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand d-flex align-items-center gap-3">
+                <div class="nav-brand-icon">
+                    <i class="bi bi-shield-lock-fill" style="font-size:0.85rem"></i>
+                </div>
+                <div class="nav-brand-text">
+                    <div class="nav-brand-name">
+                        <span class="brand-think">Think</span><span class="brand-it">IT</span>
+                    </div>
+                    <div class="nav-brand-sub">SOC Report Generator</div>
+                </div>
             </span>
-            <span class="badge bg-info text-dark">
+            <span class="badge badge-team">
                 <i class="bi bi-person-badge me-1"></i>Blue Team N1
             </span>
         </div>
@@ -34,13 +45,67 @@
         @RenderBody()
     </main>
 
-    <footer class="bg-black border-top border-secondary mt-4 py-2 text-center text-secondary small">
+    <footer class="footer-custom mt-4 py-3 text-center small">
         ThinkIT Security Operations Center &mdash; Uso Interno
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
-            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc4s9bIOgUxi8T/jzmEEDEWlAFMASXVZkQnB+bFZJj"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
             crossorigin="anonymous"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script>
+    particlesJS('particles-js', {
+        particles: {
+            number: {
+                value: 160,
+                density: { enable: true, value_area: 800 }
+            },
+            color: {
+                value: ['#D9BBF9', '#7871AA', '#AA9FB1', '#4E5283']
+            },
+            shape: { type: 'circle' },
+            opacity: {
+                value: 0.4,
+                random: true,
+                anim: { enable: true, speed: 0.4, opacity_min: 0.08, sync: false }
+            },
+            size: {
+                value: 2,
+                random: true,
+                anim: { enable: false }
+            },
+            line_linked: {
+                enable: true,
+                distance: 140,
+                color: '#7871AA',
+                opacity: 0.12,
+                width: 1
+            },
+            move: {
+                enable: true,
+                speed: 0.5,
+                direction: 'none',
+                random: true,
+                straight: false,
+                out_mode: 'out',
+                bounce: false
+            }
+        },
+        interactivity: {
+            detect_on: 'canvas',
+            events: {
+                onhover: { enable: true, mode: 'grab' },
+                onclick: { enable: false },
+                resize: true
+            },
+            modes: {
+                grab: { distance: 110, line_linked: { opacity: 0.28 } }
+            }
+        },
+        retina_detect: true
+    });
+    </script>
 
     @RenderSection("Scripts", required: false)
 </body>

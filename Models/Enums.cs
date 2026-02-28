@@ -15,7 +15,9 @@ public enum SocAction
     [Display(Name = "Avaliação do SOC")]
     SocAvaliation,
     [Display(Name = "Ação Tomada pelo SOC")]
-    SocTakenAction
+    SocTakenAction,
+    [Display(Name = "Ambos")]
+    Both
 }
 
 public static class MitreTactics
