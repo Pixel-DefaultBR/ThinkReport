@@ -164,7 +164,6 @@ public sealed class WordReportService : IWordReportService
     {
         if (model.SelectedSocAction == SocAction.Both) return;
 
-        // Remove the "Ambos" placeholders if this is not a Both report
         var body = doc.MainDocumentPart!.Document.Body!;
         var toRemove = body.Descendants<Paragraph>()
             .Where(p =>
@@ -322,7 +321,7 @@ public sealed class WordReportService : IWordReportService
 
     private static (long WidthEmu, long HeightEmu) CalculateLogoEmu(byte[] imageData)
     {
-        const long maxHeightEmu = 504_000L; // ~1.4 cm — compact for header
+        const long maxHeightEmu = 504_000L;
         const long fallbackW    = 1_512_000L;
         const long fallbackH    = 504_000L;
 
@@ -427,7 +426,6 @@ public sealed class WordReportService : IWordReportService
         }
         catch
         {
-            // Invalid URI — render as plain text
             return new Paragraph(
                 spacingProps,
                 new Run(

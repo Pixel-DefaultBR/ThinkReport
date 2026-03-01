@@ -495,7 +495,6 @@
 
 @section Scripts {
 <script>
-// ── Error toast (server-side validation) ─────────────────────────────────
 const errorToastEl = document.getElementById('errorToast');
 if (errorToastEl && typeof bootstrap !== 'undefined') {
     new bootstrap.Toast(errorToastEl, { delay: 5000 }).show();
@@ -576,7 +575,6 @@ submitBtns.forEach(btn => {
 });
 
 form.addEventListener('submit', (e) => {
-    // Validate References: only http:// and https:// allowed
     const refInputs = form.querySelectorAll('input[name="References"]');
     const safeUrlRe = /^https?:\/\/.+/i;
     let refInvalid = false;
@@ -669,12 +667,12 @@ function createBubble(label, onRemove) {
     bubble.title = label;
 
     const tacticSpan = document.createElement('span');
-    tacticSpan.textContent = tacticId; // safe: textContent never parses HTML
+    tacticSpan.textContent = tacticId;
 
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
     closeBtn.className = 'bubble-close';
-    closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>'; // static markup only
+    closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>';
     closeBtn.addEventListener('click', onRemove);
 
     bubble.append(tacticSpan, closeBtn);
@@ -775,7 +773,6 @@ updateMitreBubbles();
     addBtn?.addEventListener('click', () => addEntry());
 })();
 
-// ── AI Auto-Fill ──────────────────────────────────────────────────────────
 (function () {
     const fillBtn     = document.getElementById('aiFillBtn');
     const rawTextArea = document.getElementById('aiRawText');
@@ -785,7 +782,6 @@ updateMitreBubbles();
     const btnLoading  = document.getElementById('aiBtnLoading');
     const chevron     = document.getElementById('aiChevron');
 
-    // Chevron toggle
     document.getElementById('aiPanelBody')?.addEventListener('show.bs.collapse',  () => chevron?.classList.replace('bi-chevron-up',   'bi-chevron-down'));
     document.getElementById('aiPanelBody')?.addEventListener('hide.bs.collapse',  () => chevron?.classList.replace('bi-chevron-down', 'bi-chevron-up'));
 
@@ -825,9 +821,7 @@ updateMitreBubbles();
 
     function setMitreTactics(arr) {
         if (!Array.isArray(arr)) return;
-        // Clear predefined
         mitreCheckboxes.forEach(cb => { cb.checked = false; });
-        // Clear custom
         mitreCustomInputsEl.innerHTML = '';
         arr.forEach(v => {
             const strV = String(v).trim();
@@ -835,7 +829,6 @@ updateMitreBubbles();
             mitreCheckboxes.forEach(cb => {
                 if (cb.value.trim() === strV) { cb.checked = true; matched = true; }
             });
-            // If not in the predefined list, add as custom
             if (!matched) addCustom(strV);
         });
         updateMitreBubbles();
@@ -867,14 +860,12 @@ updateMitreBubbles();
         setText('RecommendedActions',  r.recommendedActions);
         setText('FinalObservation',    r.finalObservation);
 
-        // datetime-local
         const dtVal = toDatetimeLocal(r.incidentDateTimeUtc);
         if (dtVal) {
             const dtEl = document.querySelector('[name="IncidentDateTimeUtc"]');
             if (dtEl) dtEl.value = dtVal;
         }
 
-        // select fields
         setSelect('Severity',          r.severity);
         setSelect('SelectedSocAction', r.selectedSocAction);
         setMitreTactics(r.mitreTactic);

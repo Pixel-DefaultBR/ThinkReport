@@ -12,7 +12,6 @@ public static class TemplateGenerator
     {
         if (File.Exists(templatePath) && IsCurrentVersion(templatePath)) return;
 
-        // Auto-regenerate if file is old version (missing SOC_ACTIONS_TAKEN placeholder)
         if (File.Exists(templatePath)) File.Delete(templatePath);
 
         Directory.CreateDirectory(Path.GetDirectoryName(templatePath)!);
@@ -27,7 +26,6 @@ public static class TemplateGenerator
             var text = string.Concat(
                 doc.MainDocumentPart!.Document.Body!
                    .Descendants<Text>().Select(t => t.Text));
-            // v4: SOC_ACTIONS_TAKEN_LABEL before SOC_ACTION_LABEL AND REFERENCES placeholder exists
             var takenIdx = text.IndexOf("{{SOC_ACTIONS_TAKEN_LABEL}}", StringComparison.Ordinal);
             var socIdx   = text.IndexOf("{{SOC_ACTION_LABEL}}",        StringComparison.Ordinal);
             var refsIdx  = text.IndexOf("{{REFERENCES}}",              StringComparison.Ordinal);

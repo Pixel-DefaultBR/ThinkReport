@@ -63,8 +63,6 @@ public sealed class AiExtractionService : IAiExtractionService
         return result;
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     private static string BuildUserContent(
         string rawText,
         IReadOnlyList<(string FileName, string Content)> logFiles)
@@ -88,7 +86,6 @@ public sealed class AiExtractionService : IAiExtractionService
 
     private static void PostProcess(AiExtractionResult r)
     {
-        // Validate SHA1 — must be exactly 40 hex chars
         if (r.Sha1Hash is not null)
         {
             r.Sha1Hash = r.Sha1Hash.Trim().ToLowerInvariant();
@@ -96,16 +93,12 @@ public sealed class AiExtractionService : IAiExtractionService
                 r.Sha1Hash = null;
         }
 
-        // Clamp severity to 0–4
         if (r.Severity is < 0 or > 4)
             r.Severity = null;
 
-        // Clamp SocAction to 0–2
         if (r.SelectedSocAction is < 0 or > 2)
             r.SelectedSocAction = null;
     }
-
-    // ── System prompt ─────────────────────────────────────────────────────────
 
     private const string SystemPrompt = """
         Você é um assistente especializado em cibersegurança para analistas Blue Team SOC (nível N1).
