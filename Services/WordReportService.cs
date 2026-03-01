@@ -13,11 +13,13 @@ namespace ThinkReport.Services;
 public sealed class WordReportService : IWordReportService
 {
     private readonly string _templatePath;
+    private readonly string _logoPath;
 
     public WordReportService(IWebHostEnvironment env)
     {
         _templatePath = Path.Combine(
             env.WebRootPath, "templates", "incident_report_template.docx");
+        _logoPath = Path.Combine(env.WebRootPath, "img", "image1.png");
     }
 
     public byte[] Generate(
@@ -36,8 +38,12 @@ public sealed class WordReportService : IWordReportService
 
         using (var doc = WordprocessingDocument.Open(ms, isEditable: true))
         {
+            if (File.Exists(_logoPath))
+                AddLogoToHeader(doc, File.ReadAllBytes(_logoPath));
+
             HandleSocActionsTakenSection(doc, model);
             InsertBulletActions(doc, model.RecommendedActions ?? string.Empty);
+            InsertReferences(doc, model.References);
             ReplaceAllPlaceholders(doc, BuildReplacements(model));
 
             if (images.Count > 0)
@@ -236,6 +242,198 @@ public sealed class WordReportService : IWordReportService
             new Run(
                 new RunProperties(SF(), new FontSize { Val = "22" }),
                 new Text($"{marker}  {text}") { Space = SpaceProcessingModeValues.Preserve }));
+    }
+
+    private static void AddLogoToHeader(WordprocessingDocument doc, byte[] logoBytes)
+    {
+        var mainPart   = doc.MainDocumentPart!;
+        var headerPart = mainPart.AddNewPart<HeaderPart>();
+        var headerId   = mainPart.GetIdOfPart(headerPart);
+
+        var imgPart = headerPart.AddImagePart(DetectImageContentType(logoBytes));
+        using var imgMs = new MemoryStream(logoBytes);
+        imgPart.FeedData(imgMs);
+        var imgRelId = headerPart.GetIdOfPart(imgPart);
+
+        var (w, h) = CalculateLogoEmu(logoBytes);
+
+        var header = new Header(
+            new Paragraph(
+                new ParagraphProperties(
+                    new Justification { Val = JustificationValues.Left },
+                    new SpacingBetweenLines { Before = "0", After = "0" }),
+                new Run(BuildLogoDrawing(imgRelId, w, h))));
+
+        headerPart.Header = header;
+        header.Save();
+
+        var body   = mainPart.Document.Body!;
+        var sectPr = body.Elements<SectionProperties>().LastOrDefault()
+                     ?? body.AppendChild(new SectionProperties());
+
+        foreach (var hr in sectPr.Elements<HeaderReference>()
+                                  .Where(r => r.Type == HeaderFooterValues.Default)
+                                  .ToList())
+            hr.Remove();
+
+        sectPr.PrependChild(new HeaderReference
+        {
+            Type = HeaderFooterValues.Default,
+            Id   = headerId
+        });
+    }
+
+    private static Drawing BuildLogoDrawing(string relId, long widthEmu, long heightEmu)
+    {
+        return new Drawing(
+            new DW.Inline(
+                new DW.Extent        { Cx = widthEmu, Cy = heightEmu },
+                new DW.EffectExtent  { LeftEdge = 0L, TopEdge = 0L, RightEdge = 0L, BottomEdge = 0L },
+                new DW.DocProperties { Id = 9001U, Name = "ThinkIT_Logo" },
+                new DW.NonVisualGraphicFrameDrawingProperties(
+                    new A.GraphicFrameLocks { NoChangeAspect = true }),
+                new A.Graphic(
+                    new A.GraphicData(
+                        new PIC.Picture(
+                            new PIC.NonVisualPictureProperties(
+                                new PIC.NonVisualDrawingProperties { Id = 0U, Name = "logo.png" },
+                                new PIC.NonVisualPictureDrawingProperties()),
+                            new PIC.BlipFill(
+                                new A.Blip
+                                {
+                                    Embed            = relId,
+                                    CompressionState = A.BlipCompressionValues.Print
+                                },
+                                new A.Stretch(new A.FillRectangle())),
+                            new PIC.ShapeProperties(
+                                new A.Transform2D(
+                                    new A.Offset  { X = 0L, Y = 0L },
+                                    new A.Extents { Cx = widthEmu, Cy = heightEmu }),
+                                new A.PresetGeometry(new A.AdjustValueList())
+                                    { Preset = A.ShapeTypeValues.Rectangle })))
+                    { Uri = "http://schemas.openxmlformats.org/drawingml/2006/picture" }))
+            {
+                DistanceFromTop    = 0U,
+                DistanceFromBottom = 0U,
+                DistanceFromLeft   = 0U,
+                DistanceFromRight  = 0U
+            });
+    }
+
+    private static (long WidthEmu, long HeightEmu) CalculateLogoEmu(byte[] imageData)
+    {
+        const long maxHeightEmu = 504_000L; // ~1.4 cm — compact for header
+        const long fallbackW    = 1_512_000L;
+        const long fallbackH    = 504_000L;
+
+        try
+        {
+            if (OperatingSystem.IsWindows())
+                return CalculateLogoEmuWindows(imageData, maxHeightEmu);
+        }
+        catch { }
+
+        return (fallbackW, fallbackH);
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static (long WidthEmu, long HeightEmu) CalculateLogoEmuWindows(byte[] imageData, long maxHeightEmu)
+    {
+        const double emuPerInch = 914_400.0;
+
+        using var ms  = new MemoryStream(imageData);
+        using var img = SysImg.FromStream(ms);
+
+        var dpiX = img.HorizontalResolution > 0 ? img.HorizontalResolution : 96.0;
+        var dpiY = img.VerticalResolution   > 0 ? img.VerticalResolution   : 96.0;
+        var rawW = (long)(img.Width  / dpiX * emuPerInch);
+        var rawH = (long)(img.Height / dpiY * emuPerInch);
+
+        if (rawH <= maxHeightEmu)
+            return (rawW, rawH);
+
+        var scale = (double)maxHeightEmu / rawH;
+        return ((long)(rawW * scale), maxHeightEmu);
+    }
+
+    private static void InsertReferences(WordprocessingDocument doc, List<string>? references)
+    {
+        var mainPart = doc.MainDocumentPart!;
+        var body     = mainPart.Document.Body!;
+
+        var placeholder = body.Descendants<Paragraph>()
+            .FirstOrDefault(p =>
+                string.Concat(p.Descendants<Text>().Select(t => t.Text))
+                      .Contains("{{REFERENCES}}", StringComparison.Ordinal));
+
+        if (placeholder is null) return;
+
+        var parent    = placeholder.Parent!;
+        var validRefs = references?
+            .Select(r => r?.Trim())
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .ToList();
+
+        if (validRefs is null || validRefs.Count == 0)
+        {
+            parent.InsertBefore(
+                new Paragraph(new Run(
+                    new RunProperties(SF(), new FontSize { Val = "22" }),
+                    new Text("N/A"))),
+                placeholder);
+        }
+        else
+        {
+            foreach (var url in validRefs)
+                parent.InsertBefore(BuildHyperlinkParagraph(mainPart, url!), placeholder);
+        }
+
+        placeholder.Remove();
+    }
+
+    private static bool IsSafeUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static Paragraph BuildHyperlinkParagraph(MainDocumentPart mainPart, string url)
+    {
+        var spacingProps = new ParagraphProperties(
+            new SpacingBetweenLines { Before = "40", After = "60" });
+
+        if (!IsSafeUrl(url))
+        {
+            return new Paragraph(
+                spacingProps,
+                new Run(
+                    new RunProperties(SF(), new FontSize { Val = "22" }),
+                    new Text(url) { Space = SpaceProcessingModeValues.Preserve }));
+        }
+
+        try
+        {
+            var rel = mainPart.AddHyperlinkRelationship(new Uri(url, UriKind.Absolute), true);
+
+            var hyperlink = new Hyperlink(
+                new Run(
+                    new RunProperties(
+                        SF(),
+                        new FontSize { Val = "22" },
+                        new Color { Val = "0563C1" },
+                        new Underline { Val = UnderlineValues.Single }),
+                    new Text(url) { Space = SpaceProcessingModeValues.Preserve }))
+            { Id = rel.Id };
+
+            return new Paragraph(spacingProps, hyperlink);
+        }
+        catch
+        {
+            // Invalid URI — render as plain text
+            return new Paragraph(
+                spacingProps,
+                new Run(
+                    new RunProperties(SF(), new FontSize { Val = "22" }),
+                    new Text(url) { Space = SpaceProcessingModeValues.Preserve }));
+        }
     }
 
     private static void AppendEvidenceImages(

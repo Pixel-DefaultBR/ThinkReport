@@ -120,6 +120,34 @@ public sealed class PdfReportService : IPdfReportService
                     FieldLabel(col, "Observação Final:");
                     col.Item().PaddingTop(2).Text(model.FinalObservation ?? "N/A");
 
+                    SectionTitle(col, "5. Referências");
+                    var validRefs = model.References?
+                        .Select(r => r?.Trim())
+                        .Where(r => !string.IsNullOrWhiteSpace(r))
+                        .ToList();
+
+                    if (validRefs is null || validRefs.Count == 0)
+                    {
+                        col.Item().PaddingTop(2).Text("N/A");
+                    }
+                    else
+                    {
+                        col.Item().PaddingTop(2).Column(refCol =>
+                        {
+                            foreach (var url in validRefs)
+                            {
+                                if (IsSafeUrl(url!))
+                                    refCol.Item().PaddingTop(3)
+                                        .Hyperlink(url!)
+                                        .Text(url)
+                                        .FontColor("#0563C1")
+                                        .Underline();
+                                else
+                                    refCol.Item().PaddingTop(3).Text(url);
+                            }
+                        });
+                    }
+
                     if (images.Count > 0)
                     {
                         col.Item().PageBreak();
@@ -188,6 +216,10 @@ public sealed class PdfReportService : IPdfReportService
             }
         });
     }
+
+    private static bool IsSafeUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
     private static string SeverityLabel(SeverityLevel s) => s switch
     {

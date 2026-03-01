@@ -3,12 +3,8 @@
     ViewData["Title"] = "Novo Relatório de Incidente";
 }
 
-@* ── Page Header ──────────────────────────────────────────────────────── *@
 <div class="mb-4">
     <div class="d-flex align-items-center gap-3">
-        <div class="page-header-icon">
-            <i class="bi bi-file-earmark-text-fill"></i>
-        </div>
         <div>
             <h1 class="h5 mb-0 fw-bold">Relatório de Incidente</h1>
             <p class="text-secondary mb-0 small mt-1">
@@ -36,7 +32,6 @@
     </div>
 }
 
-@* ── AI Panel ────────────────────────────────────────────────────────── *@
 <div class="card bg-dark border-secondary mb-4" id="aiPanel">
     <div class="card-header border-secondary d-flex align-items-center gap-2"
          style="cursor:pointer;background:var(--bg-raised)"
@@ -104,7 +99,6 @@
 
     @Html.AntiForgeryToken()
 
-    @* Sumário Executivo *@
     <div class="card bg-dark border-secondary mb-3">
         <div class="card-header border-secondary d-flex align-items-center gap-2"
              style="background:var(--bg-raised)">
@@ -121,7 +115,6 @@
         </div>
     </div>
 
-    @* 1. Informações do Alerta *@
     <div class="card bg-dark border-secondary mb-3">
         <div class="card-header border-secondary d-flex align-items-center gap-3"
              style="background:var(--bg-raised)">
@@ -224,7 +217,6 @@
         </div>
     </div>
 
-    @* 2. Resumo do Evento *@
     <div class="card bg-dark border-secondary mb-3">
         <div class="card-header border-secondary d-flex align-items-center gap-3"
              style="background:var(--bg-raised)">
@@ -246,7 +238,6 @@
         </div>
     </div>
 
-    @* 3. Detalhes Técnicos *@
     <div class="card bg-dark border-secondary mb-3">
         <div class="card-header border-secondary d-flex align-items-center gap-3"
              style="background:var(--bg-raised)">
@@ -348,7 +339,6 @@
         </div>
     </div>
 
-    @* 4. Avaliação e Ações *@
     <div class="card bg-dark border-secondary mb-3">
         <div class="card-header border-secondary d-flex align-items-center gap-3"
              style="background:var(--bg-raised)">
@@ -414,7 +404,30 @@
         </div>
     </div>
 
-    @* 5. Evidências do Evento *@
+    <div class="card bg-dark border-secondary mb-3">
+        <div class="card-header border-secondary d-flex align-items-center gap-3"
+             style="background:var(--bg-raised)">
+            <div class="d-flex gap-2 align-items-center">
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+                <div class="section-step"></div>
+            </div>
+            <strong class="title">Referências</strong>
+            <span class="badge bg-secondary ms-1" style="font-size:0.65rem;letter-spacing:0.04em">opcional</span>
+            <i class="bi bi-link-45deg text-info ms-auto opacity-50" style="font-size:0.85rem"></i>
+        </div>
+        <div class="card-body p-4">
+            <p class="text-secondary small mb-3">
+                Adicione links de referência relevantes para o incidente
+                <span class="text-ref">(threat intel, CVEs, artigos técnicos, tickets relacionados, etc.)</span>.
+            </p>
+            <div id="referencesList" class="d-flex flex-column gap-2 mb-3"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="addReferenceBtn">
+                <i class="bi bi-plus-lg me-1"></i>Adicionar Link
+            </button>
+        </div>
+    </div>
+
     <div class="card bg-dark border-secondary mb-3">
         <div class="card-header border-secondary d-flex align-items-center gap-3"
              style="background:var(--bg-raised)">
@@ -445,7 +458,6 @@
         </div>
     </div>
 
-    @* Action Bar *@
     <div class="action-bar d-flex justify-content-between align-items-center gap-3 flex-wrap">
         <button type="reset" class="btn btn-outline-secondary px-4 font-monospace">
             <i class="bi bi-arrow-counterclockwise me-2"></i>Limpar Formulário
@@ -535,26 +547,64 @@ copyBtn?.addEventListener('click', async () => {
     setTimeout(() => { copyBtn.innerHTML = '<i class="bi bi-clipboard"></i>'; }, 1500);
 });
 
-const form         = document.getElementById('reportForm');
-const submitBtns   = form.querySelectorAll('button[type="submit"]');
+const form       = document.getElementById('reportForm');
+const submitBtns = form.querySelectorAll('button[type="submit"]');
 
-let clickedBtn = null;
+let clickedBtn    = null;
+let downloadTimer = null;
+
+function resetSubmitBtns() {
+    if (downloadTimer) { clearInterval(downloadTimer); downloadTimer = null; }
+    submitBtns.forEach(b => { b.disabled = false; });
+    if (clickedBtn) {
+        clickedBtn.querySelector('.btn-idle').classList.remove('d-none');
+        clickedBtn.querySelector('.btn-loading').classList.add('d-none');
+        clickedBtn = null;
+    }
+}
+
+function hasCookie(name) {
+    return document.cookie.split(';').some(c => c.trim().startsWith(name + '='));
+}
+
+function clearCookie(name) {
+    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+}
 
 submitBtns.forEach(btn => {
     btn.addEventListener('click', () => { clickedBtn = btn; });
 });
 
-form.addEventListener('submit', () => {
+form.addEventListener('submit', (e) => {
+    // Validate References: only http:// and https:// allowed
+    const refInputs = form.querySelectorAll('input[name="References"]');
+    const safeUrlRe = /^https?:\/\/.+/i;
+    let refInvalid = false;
+    refInputs.forEach(inp => {
+        const v = inp.value.trim();
+        if (v && !safeUrlRe.test(v)) {
+            inp.classList.add('is-invalid');
+            refInvalid = true;
+        } else {
+            inp.classList.remove('is-invalid');
+        }
+    });
+    if (refInvalid) { e.preventDefault(); return; }
+
     if (form.checkValidity() && clickedBtn) {
+        clearCookie('downloadReady');
         submitBtns.forEach(b => { b.disabled = true; });
         clickedBtn.querySelector('.btn-idle').classList.add('d-none');
         clickedBtn.querySelector('.btn-loading').classList.remove('d-none');
-        setTimeout(() => {
-            submitBtns.forEach(b => { b.disabled = false; });
-            clickedBtn.querySelector('.btn-idle').classList.remove('d-none');
-            clickedBtn.querySelector('.btn-loading').classList.add('d-none');
-            clickedBtn = null;
-        }, 30_000);
+
+        downloadTimer = setInterval(() => {
+            if (hasCookie('downloadReady')) {
+                clearCookie('downloadReady');
+                resetSubmitBtns();
+            }
+        }, 300);
+
+        setTimeout(() => { if (downloadTimer) resetSubmitBtns(); }, 60_000);
     }
 });
 
@@ -591,7 +641,6 @@ function updateSeverityStyle() {
 severitySelect?.addEventListener('change', updateSeverityStyle);
 updateSeverityStyle();
 
-// ── SOC Action dynamic UI ─────────────────────────────────────────────────
 const socActionSelect        = document.getElementById('socActionSelect');
 const socAssessmentLabel     = document.getElementById('socAssessmentLabel');
 const socActionsTakenSection = document.getElementById('socActionsTakenSection');
@@ -607,7 +656,6 @@ function updateSocActionUI() {
 socActionSelect?.addEventListener('change', updateSocActionUI);
 updateSocActionUI();
 
-// ── MITRE Checkbox Bubbles ────────────────────────────────────────────────
 const mitreBubblesEl      = document.getElementById('mitreBubbles');
 const mitreCheckboxes     = document.querySelectorAll('.mitre-checkbox');
 const mitreCustomInputsEl = document.getElementById('mitreCustomInputs');
@@ -619,10 +667,17 @@ function createBubble(label, onRemove) {
     const bubble = document.createElement('span');
     bubble.className = 'mitre-bubble';
     bubble.title = label;
-    bubble.innerHTML =
-        `<span>${tacticId}</span>` +
-        `<button type="button" class="bubble-close"><i class="bi bi-x-lg"></i></button>`;
-    bubble.querySelector('.bubble-close').addEventListener('click', onRemove);
+
+    const tacticSpan = document.createElement('span');
+    tacticSpan.textContent = tacticId; // safe: textContent never parses HTML
+
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'bubble-close';
+    closeBtn.innerHTML = '<i class="bi bi-x-lg"></i>'; // static markup only
+    closeBtn.addEventListener('click', onRemove);
+
+    bubble.append(tacticSpan, closeBtn);
     return bubble;
 }
 
@@ -639,7 +694,7 @@ function removeCustom(val) {
 }
 
 function addCustom(val) {
-    val = val.trim();
+    val = DOMPurify.sanitize(val.trim(), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
     if (!val) return;
     const alreadyChecked = [...mitreCheckboxes].some(cb => cb.value.trim() === val && cb.checked);
     const alreadyCustom  = getCustomTactics().includes(val);
@@ -679,6 +734,46 @@ mitreCustomInput.addEventListener('keydown', e => {
 });
 
 updateMitreBubbles();
+
+(function () {
+    const list       = document.getElementById('referencesList');
+    const addBtn     = document.getElementById('addReferenceBtn');
+    let   refCount   = 0;
+
+    function addEntry(value = '') {
+        refCount++;
+        const entry = document.createElement('div');
+        entry.className = 'd-flex align-items-center gap-2 ref-entry';
+
+        const group = document.createElement('div');
+        group.className = 'input-group';
+
+        const icon = document.createElement('span');
+        icon.className = 'input-group-text bg-secondary border-secondary text-light';
+        icon.innerHTML = '<i class="bi bi-link-45deg"></i>';
+
+        const inp = document.createElement('input');
+        inp.type        = 'text';
+        inp.name        = 'References';
+        inp.className   = 'form-control bg-dark-subtle text-light border-secondary font-monospace';
+        inp.placeholder = 'https://...';
+        inp.value       = value;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type      = 'button';
+        removeBtn.className = 'btn btn-outline-danger btn-sm flex-shrink-0';
+        removeBtn.title     = 'Remover';
+        removeBtn.innerHTML = '<i class="bi bi-trash"></i>';
+        removeBtn.addEventListener('click', () => entry.remove());
+
+        group.append(icon, inp);
+        entry.append(group, removeBtn);
+        list.appendChild(entry);
+        inp.focus();
+    }
+
+    addBtn?.addEventListener('click', () => addEntry());
+})();
 
 // ── AI Auto-Fill ──────────────────────────────────────────────────────────
 (function () {
@@ -747,10 +842,12 @@ updateMitreBubbles();
     }
 
     function populateForm(r) {
+        const purify = (v) => DOMPurify.sanitize(String(v ?? ''), { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
+
         function setText(name, val) {
             if (val === null || val === undefined) return;
             const el = document.querySelector(`[name="${name}"]`);
-            if (el) el.value = val;
+            if (el) el.value = purify(val);
         }
 
         setText('ExecutiveSummary',    r.executiveSummary);

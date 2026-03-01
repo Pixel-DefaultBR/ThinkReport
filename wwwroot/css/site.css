@@ -1,11 +1,3 @@
-/* ================================================================
-   ThinkIT SOC Report Generator — Design System v2
-   Palette : Mauve #D9BBF9 · Rosy Taupe #CCA7A2 · Lilac Ash #AA9FB1
-             Lavender Purple #7871AA · Dusty Grape #4E5283
-   Typeface : Poppins
-   ================================================================ */
-
-/* ── Design Tokens ──────────────────────────────────────────────────────── */
 :root {
     /* surfaces */
     --bg-base:    #12101e;
@@ -40,11 +32,11 @@
     --font-mono:    'JetBrains Mono', 'Consolas', monospace;
 
     /* severity */
-    --sev-informational: #1c2252;
-    --sev-low:           #1a3828;
-    --sev-medium:        #3c2e10;
-    --sev-high:          #58260e;
-    --sev-critical:      #631420;
+    --sev-informational: #4856be;
+    --sev-low:           #53ac7c;
+    --sev-medium:        #dcac45;
+    --sev-high:          #c25421;
+    --sev-critical:      #c82b42;
     --severity-high:     #58260e;
 
     /* bootstrap kill focus ring */
@@ -95,6 +87,9 @@ h1, h2, h3, h4, h5, h6,
 .mitre-note {
     color: #7871AA !important;
 }
+.text-ref {
+    color:  var(--accent-deep);
+}
 
 /* ── Bootstrap Color Overrides ──────────────────────────────────────────── */
 .border-info      { border: none !important; }
@@ -115,9 +110,9 @@ h1, h2, h3, h4, h5, h6,
 
 /* ── Navbar ─────────────────────────────────────────────────────────────── */
 .navbar-custom {
-    background:    linear-gradient(90deg, #0d0b1a 0%, #151230 60%, #1a1735 100%) !important;
-    border-bottom: 1px solid rgba(120, 113, 170, 0.22) !important;
-    padding:       0.6rem 0;
+    background:    transparent !important;
+    border-bottom: 4px solid rgba(120, 113, 170, 0.22) !important;
+    padding:       18px;
 }
 
 .nav-brand-icon {
@@ -144,10 +139,12 @@ h1, h2, h3, h4, h5, h6,
 }
 
 .brand-think {
+    font-size: 26px;
     font-weight: 700;
     color:       var(--mauve);
 }
 .brand-it {
+    font-size: 28px;
     font-weight: 300;
     color:       var(--lilac-ash);
 }

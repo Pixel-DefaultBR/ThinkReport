@@ -27,10 +27,11 @@ public static class TemplateGenerator
             var text = string.Concat(
                 doc.MainDocumentPart!.Document.Body!
                    .Descendants<Text>().Select(t => t.Text));
-            // v3: SOC_ACTIONS_TAKEN_LABEL must exist AND appear BEFORE SOC_ACTION_LABEL
+            // v4: SOC_ACTIONS_TAKEN_LABEL before SOC_ACTION_LABEL AND REFERENCES placeholder exists
             var takenIdx = text.IndexOf("{{SOC_ACTIONS_TAKEN_LABEL}}", StringComparison.Ordinal);
             var socIdx   = text.IndexOf("{{SOC_ACTION_LABEL}}",        StringComparison.Ordinal);
-            return takenIdx >= 0 && socIdx >= 0 && takenIdx < socIdx;
+            var refsIdx  = text.IndexOf("{{REFERENCES}}",              StringComparison.Ordinal);
+            return takenIdx >= 0 && socIdx >= 0 && takenIdx < socIdx && refsIdx >= 0;
         }
         catch { return false; }
     }
@@ -128,6 +129,9 @@ public static class TemplateGenerator
         body.AppendChild(ContentPara("{{RECOMMENDED_ACTIONS}}"));
         body.AppendChild(FieldLabel("Observação Final:"));
         body.AppendChild(ContentPara("{{FINAL_OBSERVATION}}"));
+
+        body.AppendChild(SectionTitle("5. REFERÊNCIAS"));
+        body.AppendChild(ContentPara("{{REFERENCES}}"));
 
         body.AppendChild(HorizontalRule());
         body.AppendChild(FooterNote(

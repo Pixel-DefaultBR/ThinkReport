@@ -17,7 +17,7 @@ public sealed class ReportController : Controller
 
     private static readonly HashSet<string> AllowedMimeTypes =
     [
-        "image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp"
+        "image/jpeg", "image/png", "image/webp"
     ];
 
     private static readonly HashSet<string> AllowedLogExtensions =
@@ -77,7 +77,7 @@ public sealed class ReportController : Controller
             {
                 ModelState.AddModelError(
                     nameof(model.EvidenceImages),
-                    $"Tipo de arquivo não permitido: '{file.ContentType}'. Use JPEG, PNG, GIF, BMP ou WEBP.");
+                    $"Tipo de arquivo não permitido: '{file.ContentType}'. Use JPEG, PNG ou WEBP.");
                 return View("Index", model);
             }
 
@@ -98,6 +98,9 @@ public sealed class ReportController : Controller
             _logger.LogInformation(
                 "Relatório gerado. AlertId={AlertId}, Evidências={Count}",
                 model.AlertId, images.Count);
+
+            Response.Cookies.Append("downloadReady", "1",
+                new CookieOptions { SameSite = SameSiteMode.Strict, MaxAge = TimeSpan.FromSeconds(10) });
 
             return File(
                 docBytes,
@@ -151,7 +154,7 @@ public sealed class ReportController : Controller
             {
                 ModelState.AddModelError(
                     nameof(model.EvidenceImages),
-                    $"Tipo de arquivo não permitido: '{file.ContentType}'. Use JPEG, PNG, GIF, BMP ou WEBP.");
+                    $"Tipo de arquivo não permitido: '{file.ContentType}'. Use JPEG, PNG ou WEBP.");
                 return View("Index", model);
             }
 
@@ -173,6 +176,9 @@ public sealed class ReportController : Controller
             _logger.LogInformation(
                 "Relatório PDF gerado. AlertId={AlertId}, Evidências={Count}",
                 model.AlertId, images.Count);
+
+            Response.Cookies.Append("downloadReady", "1",
+                new CookieOptions { SameSite = SameSiteMode.Strict, MaxAge = TimeSpan.FromSeconds(10) });
 
             return File(pdfBytes, "application/pdf", fileName);
         }
