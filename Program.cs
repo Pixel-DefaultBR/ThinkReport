@@ -25,6 +25,11 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseStatusCodePages(async ctx =>
+{
+    ctx.HttpContext.Response.Redirect("/");
+});
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
